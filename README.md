@@ -155,13 +155,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - React team for the incredible frontend library
 - Express.js team for the robust backend framework
 
-## Screenshots
-
-[Include screenshots of key features here]
-
 ## Support
 
-For support, please email support@pro-train.com or open an issue in the repository.
+For support, please email shivam.sawant23@vit.edu or open an issue in the repository.
 
 ---
 © 2025 Pro-Train. All rights reserved.
