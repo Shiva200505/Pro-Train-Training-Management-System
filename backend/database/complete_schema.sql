@@ -1,0 +1,184 @@
+-- First drop dependent tables
+DROP TABLE IF EXISTS quiz_responses;
+DROP TABLE IF EXISTS quiz_attempts;
+DROP TABLE IF EXISTS quiz_options;
+DROP TABLE IF EXISTS quiz_questions;
+DROP TABLE IF EXISTS questions;
+DROP TABLE IF EXISTS quizzes;
+DROP TABLE IF EXISTS training_materials;
+DROP TABLE IF EXISTS training_enrollments;
+DROP TABLE IF EXISTS certificates;
+DROP TABLE IF EXISTS attendance;
+DROP TABLE IF EXISTS feedback;
+DROP TABLE IF EXISTS qna;
+
+-- Then drop the main tables
+DROP TABLE IF EXISTS trainings;
+
+-- Create tables with proper constraints
+CREATE TABLE trainings (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    trainerId INT NOT NULL,
+    startDate DATE NOT NULL,
+    endDate DATE NOT NULL,
+    capacity INT DEFAULT 20,
+    location VARCHAR(255) DEFAULT '',
+    category ENUM('Technical', 'Soft Skills', 'Leadership', 'Professional') DEFAULT 'Technical',
+    level ENUM('Beginner', 'Intermediate', 'Advanced') DEFAULT 'Beginner',
+    status ENUM('Active', 'Upcoming', 'Completed', 'Cancelled') DEFAULT 'Active',
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (trainerId) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Recreate dependent tables
+CREATE TABLE IF NOT EXISTS training_materials (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    trainingId INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    fileUrl VARCHAR(255) NOT NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (trainingId) REFERENCES trainings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS training_enrollments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    trainingId INT NOT NULL,
+    userId INT NOT NULL,
+    status ENUM('Pending', 'Approved', 'Rejected', 'Completed') DEFAULT 'Pending',
+    enrollmentDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completionDate TIMESTAMP NULL,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (trainingId) REFERENCES trainings(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+-- Create attendance table
+CREATE TABLE IF NOT EXISTS attendance (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    trainingId INT NOT NULL,
+    userId INT NOT NULL,
+    date DATE NOT NULL,
+    status ENUM('Present', 'Absent', 'Late') DEFAULT 'Present',
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (trainingId) REFERENCES trainings(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create feedback table
+CREATE TABLE IF NOT EXISTS feedback (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    trainingId INT NOT NULL,
+    userId INT NOT NULL,
+    rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comments TEXT,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (trainingId) REFERENCES trainings(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create QnA table
+CREATE TABLE IF NOT EXISTS qna (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    trainingId INT NOT NULL,
+    userId INT NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT,
+    isAnswered BOOLEAN DEFAULT FALSE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (trainingId) REFERENCES trainings(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create quiz tables
+CREATE TABLE IF NOT EXISTS quizzes (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    trainingId INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    timeLimit INT, -- in minutes
+    passingScore INT DEFAULT 60,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (trainingId) REFERENCES trainings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS questions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    quizId INT NOT NULL,
+    question TEXT NOT NULL,
+    questionType ENUM('Multiple Choice', 'True/False', 'Short Answer') DEFAULT 'Multiple Choice',
+    points INT DEFAULT 1,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (quizId) REFERENCES quizzes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quiz_questions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    quizId INT NOT NULL,
+    question TEXT NOT NULL,
+    points INT DEFAULT 1,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (quizId) REFERENCES quizzes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quiz_options (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    questionId INT NOT NULL,
+    optionText TEXT NOT NULL,
+    isCorrect BOOLEAN DEFAULT FALSE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (questionId) REFERENCES quiz_questions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quiz_attempts (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    quizId INT NOT NULL,
+    userId INT NOT NULL,
+    score INT DEFAULT 0,
+    answers JSON,
+    startTime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    endTime TIMESTAMP NULL,
+    status ENUM('In Progress', 'Completed', 'Abandoned') DEFAULT 'In Progress',
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (quizId) REFERENCES quizzes(id) ON DELETE CASCADE,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Create certificates table
+CREATE TABLE IF NOT EXISTS certificates (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    userId INT NOT NULL,
+    trainingId INT NOT NULL,
+    certificateUrl VARCHAR(255) NOT NULL,
+    issueDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (trainingId) REFERENCES trainings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS quiz_responses (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    quizAttemptId INT NOT NULL,
+    questionId INT NOT NULL,
+    userAnswer VARCHAR(255) NOT NULL,
+    isCorrect BOOLEAN DEFAULT FALSE,
+    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (quizAttemptId) REFERENCES quiz_attempts(id) ON DELETE CASCADE,
+    FOREIGN KEY (questionId) REFERENCES quiz_questions(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

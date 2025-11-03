@@ -1,0 +1,189 @@
+import React, { useState, useEffect, useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
+import api from '../services/api';
+import { Plus, ClipboardList } from 'lucide-react';
+
+const Quizzes = () => {
+  const { user } = useContext(AuthContext);
+  const [quizzes, setQuizzes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [trainings, setTrainings] = useState([]);
+  const [selectedTraining, setSelectedTraining] = useState(null);
+
+  useEffect(() => {
+    const fetchTrainings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await api.get('/trainings');
+        setTrainings(response.data);
+        if (response.data.length > 0) {
+          setSelectedTraining(response.data[0].id);
+        }
+      } catch (err) {
+        console.error('Error fetching trainings:', err);
+        setError('Failed to load trainings');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrainings();
+  }, []);
+
+  useEffect(() => {
+    const loadQuizzes = async () => {
+      if (!selectedTraining) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await api.get(`/quizzes/training/${selectedTraining}`);
+        setQuizzes(response.data || []);
+      } catch (err) {
+        console.error('Error fetching quizzes:', err);
+        setError('Failed to load quizzes');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadQuizzes();
+  }, [selectedTraining]);
+
+  const handleStartQuiz = async (quizId) => {
+    try {
+      const response = await api.post(`/quizzes/${quizId}/start`);
+      window.location.href = `/app/quizzes/${quizId}/attempt/${response.data.id}`;
+    } catch (err) {
+      console.error('Error starting quiz:', err);
+      setError('Failed to start quiz');
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-red-500 mb-4">{error}</div>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Quizzes</h1>
+          <p className="text-gray-600">Manage and take training quizzes</p>
+        </div>
+        {user.role === 'Trainer' && selectedTraining && (
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Create Quiz
+          </button>
+        )}
+      </div>
+
+      {trainings.length > 0 && (
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Training
+          </label>
+          <select
+            value={selectedTraining || ''}
+            onChange={(e) => setSelectedTraining(e.target.value)}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2"
+          >
+            {trainings.map(training => (
+              <option key={training.id} value={training.id}>
+                {training.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {quizzes.map((quiz) => (
+          <div key={quiz.id} className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-800">{quiz.title}</h3>
+                <p className="text-sm text-gray-600 mt-1">{quiz.description}</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-sm ${
+                quiz.status === 'completed' ? 'bg-green-100 text-green-800' :
+                quiz.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-blue-100 text-blue-800'
+              }`}>
+                {quiz.status || 'Not Started'}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-gray-600">Questions</p>
+                <p className="text-lg font-semibold">{quiz.questionCount || 0}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Duration</p>
+                <p className="text-lg font-semibold">{quiz.duration || 0} mins</p>
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <ClipboardList className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">
+                  Passing Score: {quiz.passingScore || 70}%
+                </span>
+              </div>
+              <button
+                onClick={() => handleStartQuiz(quiz.id)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                {quiz.status === 'completed' ? 'Review' : 
+                 quiz.status === 'in-progress' ? 'Continue' : 'Start'}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {quizzes.length === 0 && selectedTraining && (
+        <div className="text-center py-12">
+          <div className="mb-4">
+            <ClipboardList className="w-12 h-12 text-gray-400 mx-auto" />
+          </div>
+          <h3 className="text-lg font-medium text-gray-900">No quizzes available</h3>
+          <p className="text-gray-500 mt-1">
+            {user.role === 'Trainer'
+              ? 'Create your first quiz by clicking the button above'
+              : 'No quizzes have been created for this training yet'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Quizzes;

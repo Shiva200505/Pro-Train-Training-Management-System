@@ -1,0 +1,17 @@
+-- Create Trainings table
+CREATE TABLE IF NOT EXISTS trainings (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  trainerId INT NOT NULL,
+  startDate DATE NOT NULL,
+  endDate DATE NOT NULL,
+  capacity INT DEFAULT 20,
+  location VARCHAR(255),
+  category VARCHAR(100),
+  level VARCHAR(50),
+  status VARCHAR(50) DEFAULT 'Upcoming',
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (trainerId) REFERENCES users(id) ON DELETE CASCADE
+);
